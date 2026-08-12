@@ -7,6 +7,7 @@
 
 #include "../../Ext/GLExtensionLoader.h"
 #include "../../Ext/GLExtensionRegistry.h"
+#include "../../GLCore.h"
 #include "../../../../Core/Exception.h"
 #include "GLCoreExtensions.h"
 #include <LLGL/Utils/ForRange.h>
@@ -975,6 +976,12 @@ static GLExtensionMap QuerySupportedOpenGLExtensions(bool isCoreProfile)
 // Includes all GL extensions that are considered default for core profiles
 static void IncludeDefaultCoreProfileExtensions(GLExtensionMap& extensions)
 {
+    struct CoreProfileExtension
+    {
+        const char* name;
+        int         minVersion;
+    };
+
     static const char* coreProfileDefaultExtensions[] =
     {
         "GL_ARB_compatibility",
@@ -992,6 +999,32 @@ static void IncludeDefaultCoreProfileExtensions(GLExtensionMap& extensions)
     };
     for (const char* ext : coreProfileDefaultExtensions)
         extensions[ext] = false;
+
+    /* Some drivers omit the legacy ARB names for core functionality from
+       GL_EXTENSIONS. Only add such names when the current context version
+       guarantees the corresponding feature. */
+    static const CoreProfileExtension versionedCoreExtensions[] =
+    {
+        { "GL_ARB_map_buffer_range",                300 },
+        { "GL_ARB_draw_instanced",                  310 },
+        { "GL_ARB_uniform_buffer_object",           310 },
+        { "GL_ARB_draw_elements_base_vertex",       320 },
+        { "GL_ARB_instanced_arrays",                330 },
+        { "GL_ARB_tessellation_shader",             400 },
+        { "GL_ARB_get_program_binary",              410 },
+        { "GL_ARB_separate_shader_objects",         410 },
+        { "GL_ARB_base_instance",                   420 },
+        { "GL_ARB_shader_storage_buffer_object",    430 },
+        { "GL_ARB_compute_shader",                  430 },
+        { "GL_ARB_program_interface_query",         430 },
+    };
+
+    const int version = GLGetVersion();
+    for (const CoreProfileExtension& ext : versionedCoreExtensions)
+    {
+        if (version >= ext.minVersion)
+            extensions[ext.name] = false;
+    }
 }
 
 // Includes all GL extensions that are implied by other extensions
